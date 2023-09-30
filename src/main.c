@@ -37,7 +37,7 @@ char *slurp_file(const char *file_path, size_t *size) {
   }
   // return how much we read
   size_t n = fread(buffer, 1, m, f);
-  assert(n == (size_t) m);
+  assert(n == (size_t)m);
 
   if (ferror(f)) {
     goto error;
@@ -79,15 +79,21 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  String_View input = {
-    .count = content_size,
-    .data = content
-  };
+  String_View input = {.count = content_size, .data = content};
 
-
-  for (size_t line_number = 0; input.count > 0; ++line_number) {
+  for (size_t col = 0; input.count > 0; ++col) {
     String_View line = sv_chop_by_delim(&input, '\n');
-    printf("%s:%zu: "SV_Fmt"\n", input_file_path, line_number, SV_Arg(line));
+
+    const char *start = line.data;
+    for (size_t row = 0; line.count > 0; ++row) {
+      String_View cell = sv_trim(sv_chop_by_delim(&line, '|'));
+      printf("%s:%zu:%zu: (%zu, %zu) "SV_Fmt"\n", 
+          input_file_path, 
+          col, 
+          cell.data - start,
+          row, col,
+          SV_Arg(cell));
+    }
   }
 
   return 0;
