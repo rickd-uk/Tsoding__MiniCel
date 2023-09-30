@@ -61,6 +61,38 @@ error:
   return NULL;
 }
 
+typedef enum {
+  CELL_KIND_TEXT,
+  CELL_KIND_NUMBER,
+  CELL_KIND_EXPR,
+} Cell_Kind;
+
+typedef struct {
+  Cell_Kind kind;
+} Cell;
+
+void estimate_table_size(String_View content, size_t *out_rows, size_t *out_cols) {
+  size_t rows = 0;
+  size_t cols = 0;
+
+  for (; content.count > 0; ++rows ) {
+    String_View line = sv_chop_by_delim(&content, '\n');
+    size_t col = 0;
+    for (; line.count > 0; ++col) {
+      sv_chop_by_delim(&line, '|');
+    }
+    if (cols < col) {
+      cols = col;
+    }
+  }
+  if (out_cols) {
+    *out_cols = cols;
+  }
+  if (out_rows) {
+    *out_rows = rows;
+  }
+}
+
 int main(int argc, char **argv) {
   if (argc < 2) {
     usage(stderr);
@@ -81,20 +113,9 @@ int main(int argc, char **argv) {
 
   String_View input = {.count = content_size, .data = content};
 
-  for (size_t col = 0; input.count > 0; ++col) {
-    String_View line = sv_chop_by_delim(&input, '\n');
 
-    const char *start = line.data;
-    for (size_t row = 0; line.count > 0; ++row) {
-      String_View cell = sv_trim(sv_chop_by_delim(&line, '|'));
-      printf("%s:%zu:%zu: (%zu, %zu) "SV_Fmt"\n", 
-          input_file_path, 
-          col, 
-          cell.data - start,
-          row, col,
-          SV_Arg(cell));
-    }
-  }
-
+  size_t rows, cols;
+  estimate_table_size(input, &rows, &cols);
+  printf("Size of the table: %zux%zu\n", rows, cols);
   return 0;
 }
