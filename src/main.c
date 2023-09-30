@@ -61,6 +61,7 @@ error:
   return NULL;
 }
 
+
 typedef enum {
   EXPR_KIND_NUM = 0,
   EXPR_KIND_CELL = 0,
@@ -76,6 +77,20 @@ typedef enum {
   CELL_KIND_NUMBER,
   CELL_KIND_EXPR,
 } Cell_Kind;
+
+const char *cell_kind_as_cstr(Cell_Kind kind) {
+  switch(kind) {
+    case CELL_KIND_TEXT:
+      return "TEXT";
+    case CELL_KIND_NUMBER:
+      return "NUMBER";
+    case CELL_KIND_EXPR:
+      return "EXPR";
+      default:
+        assert(0 && "unreachable");
+        exit(1);
+  }
+}
 
 typedef union {
   String_View text;
@@ -118,6 +133,23 @@ Cell *table_cell_at(Table *table, size_t row, size_t col) {
   return &table->cells[row * table->cols + col];
 }
 
+void parse_table_from_content(Table *table, String_View content) {
+  for (size_t row = 0; content.count > 0; ++row) {
+    String_View line = sv_chop_by_delim(&content, '\n');
+    for (size_t col = 0; line.count > 0; ++col) {
+      String_View cell_val = sv_trim(sv_chop_by_delim(&line, '|'));
+
+      Cell *cell = table_cell_at(table, row, col);
+
+      if (sv_starts_with(cell_val, SV("="))) {
+        cell->kind = CELL_KIND_EXPR;
+      } else {
+        cell->kind = CELL_KIND_TEXT;
+      }
+    }
+  }
+}
+
 void estimate_table_size(String_View content, size_t *out_rows,
                          size_t *out_cols) {
   size_t rows = 0;
@@ -142,6 +174,7 @@ void estimate_table_size(String_View content, size_t *out_rows,
 }
 
 int main(int argc, char **argv) {
+
   if (argc < 2) {
     usage(stderr);
     fprintf(stderr, "ERROR: input file has not been provided\n");
@@ -164,6 +197,15 @@ int main(int argc, char **argv) {
   size_t rows, cols;
   estimate_table_size(input, &rows, &cols);
   Table table = table_alloc(rows, cols);
+  parse_table_from_content(&table, input);
+
+  for (size_t row = 0; row < table.rows; ++row) {
+    for (size_t col = 0; col < table.cols; ++col) {
+      printf("%s|", cell_kind_as_cstr(table_cell_at(&table, row, col)->kind));
+    }
+    printf("\n");
+  }
+
 
   return 0;
 }
