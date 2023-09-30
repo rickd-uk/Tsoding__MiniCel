@@ -62,20 +62,68 @@ error:
 }
 
 typedef enum {
-  CELL_KIND_TEXT,
+  EXPR_KIND_NUM = 0,
+  EXPR_KIND_CELL = 0,
+  EXPR_KIND_BINARY_OP,
+} Expr_Kind;
+
+typedef struct {
+  Expr_Kind kind;
+} Expr;
+
+typedef enum {
+  CELL_KIND_TEXT = 0,
   CELL_KIND_NUMBER,
   CELL_KIND_EXPR,
 } Cell_Kind;
 
+typedef union {
+  String_View text;
+  double number;
+  Expr expr;
+} Cell_As;
+
 typedef struct {
   Cell_Kind kind;
+  Cell_As as;
 } Cell;
 
-void estimate_table_size(String_View content, size_t *out_rows, size_t *out_cols) {
+typedef struct {
+  Cell *cells;
+  size_t rows;
+  size_t cols;
+} Table;
+
+Table table_alloc(size_t rows, size_t cols) {
+  
+  Table table = {0};
+  table.rows = rows;
+  table.cols = cols;
+  table.cells = malloc(sizeof(Cell) * rows * cols);
+
+  if (table.cells == NULL) {
+    fprintf(stderr, "Error: could not allocate memory for the table\n");
+    exit(1);
+  }
+  // zero initialize the table
+  memset(table.cells, 0, sizeof(Cell) * rows * cols);
+
+  return table;
+}
+
+Cell *table_cell_at(Table *table, size_t row, size_t col) {
+  // simple boundary check
+  assert(row < table->rows);
+  assert(col < table->cols);
+  return &table->cells[row * table->cols + col];
+}
+
+void estimate_table_size(String_View content, size_t *out_rows,
+                         size_t *out_cols) {
   size_t rows = 0;
   size_t cols = 0;
 
-  for (; content.count > 0; ++rows ) {
+  for (; content.count > 0; ++rows) {
     String_View line = sv_chop_by_delim(&content, '\n');
     size_t col = 0;
     for (; line.count > 0; ++col) {
@@ -113,9 +161,9 @@ int main(int argc, char **argv) {
 
   String_View input = {.count = content_size, .data = content};
 
-
   size_t rows, cols;
   estimate_table_size(input, &rows, &cols);
-  printf("Size of the table: %zux%zu\n", rows, cols);
+  Table table = table_alloc(rows, cols);
+
   return 0;
 }
