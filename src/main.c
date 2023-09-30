@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SV_IMPLEMENTATION
+#include "./sv.h"
+
 void usage(FILE *stream) { fprintf(stream, "Usage: ./minicel <input.csv>\n"); }
 
 char *slurp_file(const char *file_path, size_t *size) {
@@ -45,8 +48,7 @@ char *slurp_file(const char *file_path, size_t *size) {
 
   fclose(f);
 
-
-  return 0;
+  return buffer;
 
 error:
   if (f) {
@@ -75,6 +77,17 @@ int main(int argc, char **argv) {
     fprintf(stderr, "ERROR: could not read file %s: %s\n", input_file_path,
             strerror(errno));
     exit(1);
+  }
+
+  String_View input = {
+    .count = content_size,
+    .data = content
+  };
+
+
+  for (size_t line_number = 0; input.count > 0; ++line_number) {
+    String_View line = sv_chop_by_delim(&input, '\n');
+    printf("%s:%zu: "SV_Fmt"\n", input_file_path, line_number, SV_Arg(line));
   }
 
   return 0;
