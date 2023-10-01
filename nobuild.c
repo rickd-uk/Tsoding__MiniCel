@@ -10,9 +10,16 @@ int main(int argc, char **argv) {
   if (argc > 1) {
     if (strcmp(argv[1], "run") == 0) {
       CMD("./minicel", "input.csv");
-    } else {
+    } else if (strcmp(argv[1], "gdb") == 0) {
+      CMD("gdb", "./minicel");
+    } 
+    else {
       PANIC("%s is unknown subcommand", argv[1]);
     }
   }
   return 0;
 }
+
+
+// TODO: continue @ 1:33:46 
+// https://www.youtube.com/watch?v=HCAgvKQDJng&t=296s

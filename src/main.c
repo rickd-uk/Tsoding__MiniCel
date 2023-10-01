@@ -61,7 +61,6 @@ error:
   return NULL;
 }
 
-
 typedef enum {
   EXPR_KIND_NUM = 0,
   EXPR_KIND_CELL = 0,
@@ -79,16 +78,16 @@ typedef enum {
 } Cell_Kind;
 
 const char *cell_kind_as_cstr(Cell_Kind kind) {
-  switch(kind) {
-    case CELL_KIND_TEXT:
-      return "TEXT";
-    case CELL_KIND_NUMBER:
-      return "NUMBER";
-    case CELL_KIND_EXPR:
-      return "EXPR";
-      default:
-        assert(0 && "unreachable");
-        exit(1);
+  switch (kind) {
+  case CELL_KIND_TEXT:
+    return "TEXT";
+  case CELL_KIND_NUMBER:
+    return "NUMBER";
+  case CELL_KIND_EXPR:
+    return "EXPR";
+  default:
+    assert(0 && "unreachable");
+    exit(1);
   }
 }
 
@@ -110,7 +109,7 @@ typedef struct {
 } Table;
 
 Table table_alloc(size_t rows, size_t cols) {
-  
+
   Table table = {0};
   table.rows = rows;
   table.cols = cols;
@@ -137,14 +136,27 @@ void parse_table_from_content(Table *table, String_View content) {
   for (size_t row = 0; content.count > 0; ++row) {
     String_View line = sv_chop_by_delim(&content, '\n');
     for (size_t col = 0; line.count > 0; ++col) {
-      String_View cell_val = sv_trim(sv_chop_by_delim(&line, '|'));
 
+      String_View cell_val = sv_trim(sv_chop_by_delim(&line, '|'));
       Cell *cell = table_cell_at(table, row, col);
 
       if (sv_starts_with(cell_val, SV("="))) {
         cell->kind = CELL_KIND_EXPR;
       } else {
-        cell->kind = CELL_KIND_TEXT;
+
+        static char tmp_buf[1024 * 4];
+        assert(cell_val.count < sizeof(tmp_buf));
+        snprintf(tmp_buf, sizeof(tmp_buf), SV_Fmt, SV_Arg(cell_val));
+
+        char *endptr;
+        cell->as.number = strtod(tmp_buf, &endptr);
+
+        if (endptr != tmp_buf && *endptr == '\0') {
+          cell->kind = CELL_KIND_NUMBER;
+        } else {
+          cell->kind = CELL_KIND_TEXT;
+          cell->as.text = cell_val;
+        }
       }
     }
   }
@@ -201,11 +213,24 @@ int main(int argc, char **argv) {
 
   for (size_t row = 0; row < table.rows; ++row) {
     for (size_t col = 0; col < table.cols; ++col) {
-      printf("%s|", cell_kind_as_cstr(table_cell_at(&table, row, col)->kind));
+      Cell *cell = table_cell_at(&table, row, col);
+      switch (cell->kind) {
+
+      case CELL_KIND_TEXT:
+        printf("TEXT(\""SV_Fmt"\")", SV_Arg(cell->as.text));
+        break;
+      case CELL_KIND_NUMBER:
+        printf("NUMBER(%lf)", cell->as.number);
+        break;
+      case CELL_KIND_EXPR:
+        printf("EXPR");
+        break;
+      }
+      printf("|");
+      /* printf("%s|", cell_kind_as_cstr(table_cell_at(&table, row, col)->kind)); */
     }
     printf("\n");
   }
-
 
   return 0;
 }
