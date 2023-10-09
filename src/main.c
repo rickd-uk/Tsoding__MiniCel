@@ -21,16 +21,21 @@ typedef struct {
   Expr *rhs;
 } Expr_Plus;
 
+typedef struct {
+  size_t row;
+  size_t col;
+} Expr_Cell;
+
 typedef union {
   double number;
-  String_View cell;
+  Expr_Cell cell;
   Expr_Plus plus;
 } Expr_As;
 
- struct Expr {
+struct Expr {
   Expr_Kind kind;
   Expr_As as;
-}; 
+};
 
 typedef union {
   String_View text;
@@ -55,8 +60,6 @@ typedef struct {
   size_t cols;
 } Table;
 
-
-
 const char *cell_kind_as_cstr(Cell_Kind kind) {
   switch (kind) {
   case CELL_KIND_TEXT:
@@ -71,8 +74,35 @@ const char *cell_kind_as_cstr(Cell_Kind kind) {
   }
 }
 
+bool is_digit(char c) { return isdigit(c); }
+
+bool is_name(char c) { return isalnum(c) || c == '_'; }
+
+String_View next_token(String_View *source) {
+  *source = sv_trim(*source);
+
+  if (source->count == 0) {
+    return SV_NULL;
+  }
+  if (*source->data == '+') {
+    return sv_chop_left(source, 1);
+  }
+  /* if (is_digit(*source->data)) { */
+  /*   return sv_chop_left_while(source, is_digit); */
+  /* } */
+
+  if (is_name(*source->data)) {
+    return sv_chop_left_while(source, is_name);
+  }
+  fprintf(stderr, "ERROR: unknown token starts with `%c`", *source->data);
+  exit(1);
+}
+
 Expr *parse_expr(String_View source) {
-  assert(0 && "Unimplemented");
+  while (source.count > 0) {
+    String_View token = next_token(&source);
+    printf(SV_Fmt "\n", SV_Arg(token));
+  }
   return NULL;
 }
 
@@ -208,7 +238,12 @@ void estimate_table_size(String_View content, size_t *out_rows,
   }
 }
 
-int main(int argc, char **argv) {
+int main(void) {
+  parse_expr(SV("A1+B1   + 202  + Z3   - 7  * S45"));
+  return 0;
+}
+
+int main1(int argc, char **argv) {
 
   if (argc < 2) {
     usage(stderr);
@@ -240,7 +275,7 @@ int main(int argc, char **argv) {
       switch (cell->kind) {
 
       case CELL_KIND_TEXT:
-        printf("TEXT(\""SV_Fmt"\")", SV_Arg(cell->as.text));
+        printf("TEXT(\"" SV_Fmt "\")", SV_Arg(cell->as.text));
         break;
       case CELL_KIND_NUMBER:
         printf("NUMBER(%lf)", cell->as.number);
@@ -250,7 +285,8 @@ int main(int argc, char **argv) {
         break;
       }
       printf("|");
-      /* printf("%s|", cell_kind_as_cstr(table_cell_at(&table, row, col)->kind)); */
+      /* printf("%s|", cell_kind_as_cstr(table_cell_at(&table, row,
+       * col)->kind)); */
     }
     printf("\n");
   }
