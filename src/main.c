@@ -106,6 +106,22 @@ Expr *parse_primary_expr(String_View *source) {
     exit(1);
   }
 
+  Expr *expr = malloc(sizeof(Expr));
+  
+  static char tmp_buffer[1024 * 4];
+  assert(token.count < sizeof(tmp_buffer));
+  snprintf(tmp_buffer, sizeof(tmp_buffer), SV_Fmt, SV_Arg(token));
+
+  char *endptr;
+  expr->as.number = strtod(tmp_buffer, &endptr);
+
+  if (endptr != tmp_buffer && *endptr == '\0') {
+    expr->kind = EXPR_KIND_NUM;
+  return expr;
+  } else {
+    // CELL:
+    assert(0 && "not implemented");
+  }
 
 }
 
@@ -113,7 +129,7 @@ Expr *parse_plus_expr(String_View *source) {
   Expr *lhs = parse_primary_expr(source);
 
   String_View token = next_token(source);
-  if (token.data != NULL && sv_eq(token, "+")) {
+  if (token.data != NULL && sv_eq(token, SV("+"))) {
     Expr *rhs = parse_plus_expr(source);
     Expr *expr = malloc(sizeof(Expr));
     expr->kind = EXPR_KIND_PLUS;
@@ -218,7 +234,7 @@ void parse_table_from_content(Table *table, String_View content) {
 
       if (sv_starts_with(cell_val, SV("="))) {
         cell->kind = CELL_KIND_EXPR;
-        cell->as.expr = parse_expr(cell_val);
+        cell->as.expr = parse_expr(&cell_val);
       } else {
 
         static char tmp_buf[1024 * 4];
@@ -263,7 +279,8 @@ void estimate_table_size(String_View content, size_t *out_rows,
 }
 
 int main(void) {
-  parse_expr(SV("A1+B1   + 202  + Z3   - 7  * S45"));
+  String_View source = SV_STATIC("A1+B1   + 202  + Z3   - 7  * S45");
+  parse_expr(&source);
   return 0;
 }
 
