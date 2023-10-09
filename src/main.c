@@ -98,12 +98,36 @@ String_View next_token(String_View *source) {
   exit(1);
 }
 
-Expr *parse_expr(String_View source) {
-  while (source.count > 0) {
-    String_View token = next_token(&source);
-    printf(SV_Fmt "\n", SV_Arg(token));
+Expr *parse_primary_expr(String_View *source) {
+  String_View token = next_token(source);
+
+  if (token.count == 0) {
+    fprintf(stderr, "Error: expected primary expression token, but got end of input\n");
+    exit(1);
   }
-  return NULL;
+
+
+}
+
+Expr *parse_plus_expr(String_View *source) {
+  Expr *lhs = parse_primary_expr(source);
+
+  String_View token = next_token(source);
+  if (token.data != NULL && sv_eq(token, "+")) {
+    Expr *rhs = parse_plus_expr(source);
+    Expr *expr = malloc(sizeof(Expr));
+    expr->kind = EXPR_KIND_PLUS;
+
+    expr->as.plus.lhs = lhs;
+    expr->as.plus.rhs = rhs;
+
+    return expr;
+  }
+  return lhs;
+}
+
+Expr *parse_expr(String_View *source) {
+  return parse_plus_expr(source);
 }
 
 void usage(FILE *stream) { fprintf(stream, "Usage: ./minicel <input.csv>\n"); }
