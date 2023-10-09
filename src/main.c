@@ -7,6 +7,75 @@
 #define SV_IMPLEMENTATION
 #include "./sv.h"
 
+// Define this before we use it. We had a recursive depedancy
+typedef struct Expr Expr;
+
+typedef enum {
+  EXPR_KIND_NUM = 0,
+  EXPR_KIND_CELL = 0,
+  EXPR_KIND_PLUS,
+} Expr_Kind;
+
+typedef struct {
+  Expr *lhs;
+  Expr *rhs;
+} Expr_Plus;
+
+typedef union {
+  double number;
+  String_View cell;
+  Expr_Plus plus;
+} Expr_As;
+
+ struct Expr {
+  Expr_Kind kind;
+  Expr_As as;
+}; 
+
+typedef union {
+  String_View text;
+  double number;
+  Expr *expr;
+} Cell_As;
+
+typedef enum {
+  CELL_KIND_TEXT = 0,
+  CELL_KIND_NUMBER,
+  CELL_KIND_EXPR,
+} Cell_Kind;
+
+typedef struct {
+  Cell_Kind kind;
+  Cell_As as;
+} Cell;
+
+typedef struct {
+  Cell *cells;
+  size_t rows;
+  size_t cols;
+} Table;
+
+
+
+const char *cell_kind_as_cstr(Cell_Kind kind) {
+  switch (kind) {
+  case CELL_KIND_TEXT:
+    return "TEXT";
+  case CELL_KIND_NUMBER:
+    return "NUMBER";
+  case CELL_KIND_EXPR:
+    return "EXPR";
+  default:
+    assert(0 && "unreachable");
+    exit(1);
+  }
+}
+
+Expr *parse_expr(String_View source) {
+  assert(0 && "Unimplemented");
+  return NULL;
+}
+
 void usage(FILE *stream) { fprintf(stream, "Usage: ./minicel <input.csv>\n"); }
 
 char *slurp_file(const char *file_path, size_t *size) {
@@ -61,53 +130,6 @@ error:
   return NULL;
 }
 
-typedef enum {
-  EXPR_KIND_NUM = 0,
-  EXPR_KIND_CELL = 0,
-  EXPR_KIND_BINARY_OP,
-} Expr_Kind;
-
-typedef struct {
-  Expr_Kind kind;
-} Expr;
-
-typedef enum {
-  CELL_KIND_TEXT = 0,
-  CELL_KIND_NUMBER,
-  CELL_KIND_EXPR,
-} Cell_Kind;
-
-const char *cell_kind_as_cstr(Cell_Kind kind) {
-  switch (kind) {
-  case CELL_KIND_TEXT:
-    return "TEXT";
-  case CELL_KIND_NUMBER:
-    return "NUMBER";
-  case CELL_KIND_EXPR:
-    return "EXPR";
-  default:
-    assert(0 && "unreachable");
-    exit(1);
-  }
-}
-
-typedef union {
-  String_View text;
-  double number;
-  Expr expr;
-} Cell_As;
-
-typedef struct {
-  Cell_Kind kind;
-  Cell_As as;
-} Cell;
-
-typedef struct {
-  Cell *cells;
-  size_t rows;
-  size_t cols;
-} Table;
-
 Table table_alloc(size_t rows, size_t cols) {
 
   Table table = {0};
@@ -142,6 +164,7 @@ void parse_table_from_content(Table *table, String_View content) {
 
       if (sv_starts_with(cell_val, SV("="))) {
         cell->kind = CELL_KIND_EXPR;
+        cell->as.expr = parse_expr(cell_val);
       } else {
 
         static char tmp_buf[1024 * 4];
