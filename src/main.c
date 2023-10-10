@@ -98,31 +98,64 @@ String_View next_token(String_View *source) {
   exit(1);
 }
 
+bool sv_strtod(String_View sv, double *out) {
+
+  static char tmp_buffer[1024 * 4];
+  assert(sv.count < sizeof(tmp_buffer));
+  snprintf(tmp_buffer, sizeof(tmp_buffer), SV_Fmt, SV_Arg(sv));
+
+  char *endptr = NULL;
+  double result = strtod(tmp_buffer, &endptr);
+  if (out) *out = result;
+  return endptr != tmp_buffer && *endptr == '\0';
+}
+
+
+bool sv_strtol(String_View sv, long int *out) {
+
+  static char tmp_buffer[1024 * 4];
+  assert(sv.count < sizeof(tmp_buffer));
+  snprintf(tmp_buffer, sizeof(tmp_buffer), SV_Fmt, SV_Arg(sv));
+
+  char *endptr = NULL;
+  long int result = strtol(tmp_buffer, &endptr, 10);
+  if (out) *out = result;
+  return endptr != tmp_buffer && *endptr == '\0';
+}
+
 Expr *parse_primary_expr(String_View *source) {
   String_View token = next_token(source);
 
   if (token.count == 0) {
-    fprintf(stderr, "Error: expected primary expression token, but got end of input\n");
+    fprintf(stderr,
+            "Error: expected primary expression token, but got end of input\n");
     exit(1);
   }
 
   Expr *expr = malloc(sizeof(Expr));
-  
-  static char tmp_buffer[1024 * 4];
-  assert(token.count < sizeof(tmp_buffer));
-  snprintf(tmp_buffer, sizeof(tmp_buffer), SV_Fmt, SV_Arg(token));
 
-  char *endptr;
-  expr->as.number = strtod(tmp_buffer, &endptr);
-
-  if (endptr != tmp_buffer && *endptr == '\0') {
+  if (sv_strtod(token, &expr->as.number)) {
     expr->kind = EXPR_KIND_NUM;
-  return expr;
   } else {
-    // CELL:
-    assert(0 && "not implemented");
-  }
+    expr->kind = EXPR_KIND_CELL;
+    if (!isupper(*token.data)) {
+      fprintf(stderr, "ERROR: cell ref must start with capital letters");
+      exit(1);
+    }
 
+    expr->as.cell.col = *token.data - 'A';
+
+    sv_chop_left(&token, 1);
+
+    long int row = 0;
+    if (!sv_strtol(token, &row)) {
+      fprintf(stderr, "Error: cell reference must have an integer as the row no.\n");
+      exit(1);
+    }
+    expr->as.cell.row = (size_t) row;
+
+  }
+    return expr;
 }
 
 Expr *parse_plus_expr(String_View *source) {
@@ -142,9 +175,7 @@ Expr *parse_plus_expr(String_View *source) {
   return lhs;
 }
 
-Expr *parse_expr(String_View *source) {
-  return parse_plus_expr(source);
-}
+Expr *parse_expr(String_View *source) { return parse_plus_expr(source); }
 
 void usage(FILE *stream) { fprintf(stream, "Usage: ./minicel <input.csv>\n"); }
 
@@ -237,14 +268,7 @@ void parse_table_from_content(Table *table, String_View content) {
         cell->as.expr = parse_expr(&cell_val);
       } else {
 
-        static char tmp_buf[1024 * 4];
-        assert(cell_val.count < sizeof(tmp_buf));
-        snprintf(tmp_buf, sizeof(tmp_buf), SV_Fmt, SV_Arg(cell_val));
-
-        char *endptr;
-        cell->as.number = strtod(tmp_buf, &endptr);
-
-        if (endptr != tmp_buf && *endptr == '\0') {
+        if (sv_strtod(cell_val, &cell->as.number)) {
           cell->kind = CELL_KIND_NUMBER;
         } else {
           cell->kind = CELL_KIND_TEXT;
@@ -279,8 +303,9 @@ void estimate_table_size(String_View content, size_t *out_rows,
 }
 
 int main(void) {
-  String_View source = SV_STATIC("A1+B1   + 202  + Z3   - 7  * S45");
-  parse_expr(&source);
+  String_View source = SV_STATIC("A1+B1   + 202  + Z3   + 7  + S45");
+  Expr *expr = parse_expr(&source);
+  /* parse_expr(&source); */
   return 0;
 }
 
