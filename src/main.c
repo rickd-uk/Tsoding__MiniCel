@@ -12,7 +12,7 @@ typedef struct Expr Expr;
 
 typedef enum {
   EXPR_KIND_NUM = 0,
-  EXPR_KIND_CELL = 0,
+  EXPR_KIND_CELL,
   EXPR_KIND_PLUS,
 } Expr_Kind;
 
@@ -175,6 +175,27 @@ Expr *parse_plus_expr(String_View *source) {
   return lhs;
 }
 
+void dump_expr(FILE *stream, Expr *expr, int level) {
+  fprintf(stream, "%*s", level * 2, "");
+
+  switch(expr->kind) {
+    case EXPR_KIND_NUM:
+      fprintf(stream, "NUMBER: %lf\n", expr->as.number);
+      break;
+
+    case EXPR_KIND_CELL:
+      fprintf(stream, "CELL(%zu, %zu)\n", expr->as.cell.row, expr->as.cell.col);
+      break;
+
+    case EXPR_KIND_PLUS:
+      fprintf(stream, "PLUS:\n");
+      dump_expr(stream, expr->as.plus.lhs, level + 1);
+      dump_expr(stream, expr->as.plus.rhs, level + 1);
+
+      break;
+  }
+}
+
 Expr *parse_expr(String_View *source) { return parse_plus_expr(source); }
 
 void usage(FILE *stream) { fprintf(stream, "Usage: ./minicel <input.csv>\n"); }
@@ -303,8 +324,9 @@ void estimate_table_size(String_View content, size_t *out_rows,
 }
 
 int main(void) {
-  String_View source = SV_STATIC("A1+B1   + 202  + Z3   + 7  + S45");
+  String_View source = SV_STATIC("A1+B1  +69   +  C1+D1");
   Expr *expr = parse_expr(&source);
+  dump_expr(stdout, expr, 0);
   /* parse_expr(&source); */
   return 0;
 }
